@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GroceryHub - Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body class="dashboard-body">
+    <nav class="glass-nav">
+        <div class="logo">GroceryHub <span id="userRoleBadge" class="badge"></span></div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span id="userNameDisplay" style="color: white; font-weight: 600;"></span>
+            <button id="logoutBtn" class="btn-secondary">Logout</button>
+        </div>
+    </nav>
+    <main class="container">
+        <div class="header-action">
+            <h2>Product Inventory</h2>
+            <button id="addBtn" class="btn-primary hidden">Add New Product</button>
+        </div>
+
+        <!-- Add Product Form Modal -->
+        <div id="addProductModal" class="glass-container hidden">
+            <h3>Add Product</h3>
+            <div class="form-group">
+                <input type="text" id="pName" placeholder="Name">
+                <input type="number" id="pPrice" placeholder="Price">
+                <input type="number" id="pStock" placeholder="Stock Quantity">
+                <button id="saveProductBtn" class="btn-primary">Save</button>
+                <button id="cancelBtn" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+
+        <div class="table-container glass-container">
+            <table id="productsTable">
+                <thead>
+                    <tr id="tableHeader">
+                        <!-- Dynamically populated based on role -->
+                    </tr>
+                </thead>
+                <tbody id="productsBody">
+                    <!-- Data rows -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+    <script src="/js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+    </script>
+</body>
+
+</html>

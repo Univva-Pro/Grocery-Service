@@ -1,0 +1,52 @@
+<div class="dashboard-body">
+    <nav class="glass-nav">
+        <div class="logo">GroceryHub <span class="badge">{{ role }}</span></div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="color: white; font-weight: 600;">Welcome, {{ username }}</span>
+            <button (click)="logout()" class="btn-secondary">Logout</button>
+        </div>
+    </nav>
+    <main class="container">
+        <div class="header-action">
+            <h2>Product Inventory</h2>
+            <button *ngIf="isAdmin" (click)="openModal()" class="btn-primary">Add Item</button>
+        </div>
+
+        <!-- Add Product Form Modal -->
+        <div *ngIf="showModal" class="glass-container" style="margin-bottom: 2rem;">
+            <h3>Add Item</h3>
+            <div class="form-group">
+                <input type="text" name="name" [(ngModel)]="newProduct.name" placeholder="Name">
+                <input type="number" name="price" [(ngModel)]="newProduct.price" placeholder="Price">
+                <input type="number" name="stockQuantity" [(ngModel)]="newProduct.stockQuantity" placeholder="Stock Quantity">
+                <button type="button" (click)="saveProduct()" class="btn-primary">Save</button>
+                <button type="button" (click)="closeModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+
+        <div class="table-container glass-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th *ngIf="isAdmin">Fresh?</th>
+                        <th *ngIf="isAdmin">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let p of products">
+                        <td>{{ p.name }}</td>
+                        <td>${{ p.price }}</td>
+                        <td>{{ isAdmin ? p.stockQuantity : p.quantity }}</td>
+                        <td *ngIf="isAdmin">{{ p.isFresh ? 'Yes' : 'No' }}</td>
+                        <td *ngIf="isAdmin">
+                            <button class="btn-secondary btn-sm" (click)="deleteProduct(p.productId)">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>

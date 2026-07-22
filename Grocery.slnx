@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Infrastructure/">
+    <File Path="Dockerfile" />
+    <File Path="docker-compose.yml" />
+  </Folder>
+  <Folder Name="/Mongo-init/">
+    <File Path="Mongo-init\init.js" />
+  </Folder>
+  <Project Path="Grocery.DMO\Grocery.DMO.csproj" />
+  <Project Path="Grocery.DTO\Grocery.DTO.csproj" />
+  <Project Path="Grocery.Context\Grocery.Context.csproj" />
+  <Project Path="Grocery.ServiceHub\Grocery.ServiceHub.csproj" />
+</Solution>

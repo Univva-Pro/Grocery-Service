@@ -1,0 +1,20 @@
+services:
+  grocery-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8089:8080"
+    environment:
+      - MongoDb__ConnectionString=mongodb+srv://naikamit6773_db_user:kF6dl6BlSEf53mZ6@cluster0.r92gitf.mongodb.net/?appName=Cluster0
+      - MongoDb__DatabaseName=GroceryDB
+
+  grocery-frontend:
+    build:
+      context: ./Grocery.Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4201:80"
+    depends_on:
+      - grocery-api
+
