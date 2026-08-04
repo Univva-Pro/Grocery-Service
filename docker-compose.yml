@@ -8,6 +8,9 @@ services:
     environment:
       - MongoDb__ConnectionString=mongodb+srv://naikamit6773_db_user:kF6dl6BlSEf53mZ6@cluster0.r92gitf.mongodb.net/?appName=Cluster0
       - MongoDb__DatabaseName=GroceryDB
+      - ServiceUrls__CommonService=http://host.docker.internal:8091
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   grocery-frontend:
     build:

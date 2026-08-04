@@ -1,6 +1,11 @@
 using Grocery.Context;
 using Grocery.DTO;
 using Grocery.DMO;
+using Common.Library.Models;
+using Common.Library.DTOs;
+using Common.Library.Data;
+using Common.Library.Extensions;
+using Common.Library.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,40 +28,14 @@ Console.WriteLine($"[STARTUP] Using MongoDB Connection: {connectionString}");
 Console.WriteLine($"[STARTUP] Using Database Name: {databaseName}");
 Console.WriteLine("====================================================");
 
-try 
-{
-    builder.Services.AddSingleton(new GroceryRepository(connectionString, databaseName));
-    builder.Services.AddSingleton(new UserRepository(connectionString, databaseName));
-    Console.WriteLine("[STARTUP] Successfully connected to MongoDB and seeded collections!");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"[FATAL ERROR] Could not connect to MongoDB. Is your IP whitelisted in Atlas? Error: {ex.Message}");
-}
+builder.Services.AddSingleton<GroceryRepository>(sp => new GroceryRepository(connectionString, databaseName));
+builder.Services.AddSingleton<UserRepository>(sp => new UserRepository(connectionString, databaseName));
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "ThisIsAVerySecretKeyForJwtAuthenticationWhichNeedsToBeLongEnough";
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-            ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Grocery.ServiceHub",
-            ValidateAudience = false,
-            RoleClaimType = ClaimTypes.Role,
-            NameClaimType = ClaimTypes.Name
-        };
-    });
-
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-});
+builder.Services.AddCommonJwtAuthentication(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {
@@ -99,11 +78,13 @@ app.MapPost("/api/auth/login", async (LoginRequest request, UserRepository userR
     return Results.Ok(new AuthResponse { Token = tokenHandler.WriteToken(token), Role = user.Role, Username = user.Username });
 });
 
-// Get Products (Accessible by both Admin and User, but returns different fields)
+// Get Products (Accessible by both Admin and User, returning role-based fields)
 app.MapGet("/api/Grocery/products", async (GroceryRepository repository, ClaimsPrincipal user) =>
 {
     var products = await repository.GetAllProductsAsync();
-    bool isAdmin = user.IsInRole("Admin");
+    bool isAdmin = user.IsInRole("Admin") ||
+                   user.HasClaim(c => (c.Type == ClaimTypes.Role || c.Type.ToLower() == "role") &&
+                                      c.Value.Equals("Admin", StringComparison.OrdinalIgnoreCase));
 
     if (isAdmin)
     {
@@ -128,7 +109,7 @@ app.MapGet("/api/Grocery/products", async (GroceryRepository repository, ClaimsP
         }).ToList();
         return Results.Ok(response);
     }
-}).RequireAuthorization();
+}).AllowAnonymous();
 
 // Add Product (Admin Only)
 app.MapPost("/api/Grocery/products", async (GroceryProductRequest request, GroceryRepository repository) =>
@@ -141,6 +122,21 @@ app.MapPost("/api/Grocery/products", async (GroceryProductRequest request, Groce
         PasteurizationDate = DateTime.UtcNow
     };
     await repository.AddProductAsync(product);
+
+    var commonServiceUrl = builder.Configuration["ServiceUrls:CommonService"];
+
+    // Live Sync to Common-Service Master Inventory
+    _ = ProductSyncClient.SyncProductToCommonAsync(new ProductSyncPayload
+    {
+        OriginalId = product.Id.ToString(),
+        Name = product.Name,
+        Category = "Grocery",
+        Price = (decimal)product.Price,
+        StockQuantity = product.StockQuantity,
+        SourceService = "Grocery",
+        ActionType = "Add"
+    }, commonServiceUrl);
+
     var response = new GroceryProductAdminResponse
     {
         ProductId = product.Id.ToString(),
@@ -155,24 +151,61 @@ app.MapPost("/api/Grocery/products", async (GroceryProductRequest request, Groce
 // Update Product (Admin Only)
 app.MapPut("/api/Grocery/products/{id}", async (string id, GroceryProductRequest request, GroceryRepository repository) =>
 {
+    var commonServiceUrl = builder.Configuration["ServiceUrls:CommonService"];
     var existing = await repository.GetProductAsync(id);
-    if (existing == null) return Results.NotFound();
+    if (existing == null)
+    {
+        existing = new GroceryProduct
+        {
+            Name = request.Name,
+            StockQuantity = request.StockQuantity,
+            Price = request.Price,
+            PasteurizationDate = DateTime.UtcNow
+        };
+        await repository.AddProductAsync(existing);
+    }
+    else
+    {
+        existing.Name = request.Name;
+        existing.StockQuantity = request.StockQuantity;
+        existing.Price = request.Price;
+        await repository.UpdateProductAsync(id, existing);
+    }
 
-    existing.Name = request.Name;
-    existing.StockQuantity = request.StockQuantity;
-    existing.Price = request.Price;
+    // Live Sync Update to Common-Service Master Inventory
+    _ = ProductSyncClient.SyncProductToCommonAsync(new ProductSyncPayload
+    {
+        OriginalId = id,
+        Name = existing.Name,
+        Category = "Grocery",
+        Price = (decimal)existing.Price,
+        StockQuantity = existing.StockQuantity,
+        SourceService = "Grocery",
+        ActionType = "Update"
+    }, commonServiceUrl);
 
-    await repository.UpdateProductAsync(id, existing);
-    return Results.Ok(new { message = "Product updated successfully" });
+    return Results.Ok(new { message = "Product updated successfully", product = existing });
 }).RequireAuthorization("AdminOnly");
 
 // Delete Product (Admin Only)
 app.MapDelete("/api/Grocery/products/{id}", async (string id, GroceryRepository repository) =>
 {
+    var commonServiceUrl = builder.Configuration["ServiceUrls:CommonService"];
     var existing = await repository.GetProductAsync(id);
     if (existing == null) return Results.NotFound();
 
     await repository.DeleteProductAsync(id);
+
+    // Live Sync Delete to Common-Service Master Inventory
+    _ = ProductSyncClient.SyncProductToCommonAsync(new ProductSyncPayload
+    {
+        OriginalId = id,
+        Name = existing.Name,
+        Category = "Grocery",
+        SourceService = "Grocery",
+        ActionType = "Delete"
+    }, commonServiceUrl);
+
     return Results.Ok(new { message = "Product deleted successfully" });
 }).RequireAuthorization("AdminOnly");
 
