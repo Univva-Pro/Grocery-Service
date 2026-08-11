@@ -42,7 +42,7 @@
                         <td>{{ isAdmin ? p.stockQuantity : p.quantity }}</td>
                         <td *ngIf="isAdmin">{{ p.isFresh ? 'Yes' : 'No' }}</td>
                         <td *ngIf="isAdmin">
-                            <button class="btn-secondary btn-sm" (click)="deleteProduct(p.productId)">Delete</button>
+                            <button class="btn-secondary btn-sm" (click)="deleteProduct(p)">Delete</button>
                         </td>
                     </tr>
                 </tbody>

@@ -41,11 +41,15 @@ export class DashboardComponent implements OnInit {
   loadProducts(): void {
     this.productService.getProducts().subscribe({
       next: (data) => {
-        this.products = data;
+        this.products = data || [];
       },
-      error: () => {
-        this.authService.logout();
-        this.router.navigate(['/login']);
+      error: (err) => {
+        if (err?.status === 401 || err?.status === 403) {
+          this.authService.logout();
+          this.router.navigate(['/login']);
+        } else {
+          console.error('Error loading products:', err);
+        }
       }
     });
   }
@@ -61,6 +65,7 @@ export class DashboardComponent implements OnInit {
 
   closeModal(): void {
     this.showModal = false;
+    this.isSubmitting = false;
     this.newProduct = {
       name: '',
       price: 0,
@@ -68,27 +73,40 @@ export class DashboardComponent implements OnInit {
     };
   }
 
+  isSubmitting = false;
+
   saveProduct(): void {
+    if (this.isSubmitting) return;
+    if (!this.newProduct.name?.trim()) return;
+
+    this.isSubmitting = true;
     const payload = {
-      name: this.newProduct.name,
+      name: this.newProduct.name.trim(),
       price: Number(this.newProduct.price) || 0,
       stockQuantity: Number(this.newProduct.stockQuantity) || 0
     };
     this.productService.addProduct(payload).subscribe({
       next: () => {
+        this.isSubmitting = false;
         this.closeModal();
         this.loadProducts();
       },
-      error: (err) => console.error(err)
+      error: (err) => {
+        this.isSubmitting = false;
+        console.error('Error saving product:', err);
+      }
     });
   }
 
-  deleteProduct(id: string): void {
+  deleteProduct(item: any): void {
+    const id = typeof item === 'string' ? item : (item?.productId || item?.id || item?.ProductId);
+    if (!id) return;
+
     this.productService.deleteProduct(id).subscribe({
       next: () => {
         this.loadProducts();
       },
-      error: (err) => console.error(err)
+      error: (err) => console.error('Error deleting product:', err)
     });
   }
 }

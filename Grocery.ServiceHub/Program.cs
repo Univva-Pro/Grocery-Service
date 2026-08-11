@@ -114,9 +114,41 @@ app.MapGet("/api/Grocery/products", async (GroceryRepository repository, ClaimsP
 // Add Product (Admin Only)
 app.MapPost("/api/Grocery/products", async (GroceryProductRequest request, GroceryRepository repository) =>
 {
+    var existingProducts = await repository.GetAllProductsAsync();
+    var existing = existingProducts.FirstOrDefault(p => !string.IsNullOrEmpty(p.Name) && p.Name.Trim().Equals(request.Name?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    if (existing != null)
+    {
+        existing.StockQuantity = request.StockQuantity;
+        existing.Price = request.Price;
+        await repository.UpdateProductAsync(existing.Id.ToString(), existing);
+
+        var commonUrl = builder.Configuration["ServiceUrls:CommonService"];
+        _ = ProductSyncClient.SyncProductToCommonAsync(new ProductSyncPayload
+        {
+            OriginalId = existing.Id.ToString(),
+            Name = existing.Name,
+            Category = "Grocery",
+            Price = (decimal)existing.Price,
+            StockQuantity = existing.StockQuantity,
+            SourceService = "Grocery",
+            ActionType = "Update"
+        }, commonUrl);
+
+        var updateResponse = new GroceryProductAdminResponse
+        {
+            ProductId = existing.Id.ToString(),
+            Name = existing.Name,
+            StockQuantity = existing.StockQuantity,
+            Price = existing.Price,
+            IsFresh = true
+        };
+        return Results.Ok(updateResponse);
+    }
+
     var product = new GroceryProduct
     {
-        Name = request.Name,
+        Name = request.Name?.Trim() ?? "",
         StockQuantity = request.StockQuantity,
         Price = request.Price,
         PasteurizationDate = DateTime.UtcNow
