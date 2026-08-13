@@ -1,5 +1,5 @@
 services:
-  grocery-api:
+  grocery-service:
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,13 +11,3 @@ services:
       - ServiceUrls__CommonService=http://host.docker.internal:8091
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
-  grocery-frontend:
-    build:
-      context: ./Grocery.Frontend
-      dockerfile: Dockerfile
-    ports:
-      - "4201:80"
-    depends_on:
-      - grocery-api
-

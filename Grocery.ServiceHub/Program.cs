@@ -241,4 +241,6 @@ app.MapDelete("/api/Grocery/products/{id}", async (string id, GroceryRepository 
     return Results.Ok(new { message = "Product deleted successfully" });
 }).RequireAuthorization("AdminOnly");
 
+app.MapFallbackToFile("index.html");
+
 app.Run();
