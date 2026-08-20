@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
   providedIn: 'root'
 })
 export class ProductService {
-  private apiUrl = 'http://localhost:8089/api/Grocery/products';
+  private apiUrl = '/api/Grocery/products';
 
   constructor(private http: HttpClient, private authService: AuthService) { }
 
