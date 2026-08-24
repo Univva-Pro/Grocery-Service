@@ -59,13 +59,31 @@ export class DashboardComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
+  isEditing = false;
+  editingId: string | null = null;
+
   openModal(): void {
+    this.isEditing = false;
+    this.editingId = null;
+    this.showModal = true;
+  }
+
+  openEditModal(p: any): void {
+    this.isEditing = true;
+    this.editingId = p.productId || p.id || p.ProductId;
+    this.newProduct = {
+      name: p.name || '',
+      price: p.price ?? 0,
+      stockQuantity: p.stockQuantity ?? p.quantity ?? 0
+    };
     this.showModal = true;
   }
 
   closeModal(): void {
     this.showModal = false;
     this.isSubmitting = false;
+    this.isEditing = false;
+    this.editingId = null;
     this.newProduct = {
       name: '',
       price: 0,
@@ -85,17 +103,32 @@ export class DashboardComponent implements OnInit {
       price: Number(this.newProduct.price) || 0,
       stockQuantity: Number(this.newProduct.stockQuantity) || 0
     };
-    this.productService.addProduct(payload).subscribe({
-      next: () => {
-        this.isSubmitting = false;
-        this.closeModal();
-        this.loadProducts();
-      },
-      error: (err) => {
-        this.isSubmitting = false;
-        console.error('Error saving product:', err);
-      }
-    });
+
+    if (this.isEditing && this.editingId) {
+      this.productService.updateProduct(this.editingId, payload).subscribe({
+        next: () => {
+          this.isSubmitting = false;
+          this.closeModal();
+          this.loadProducts();
+        },
+        error: (err) => {
+          this.isSubmitting = false;
+          console.error('Error updating product:', err);
+        }
+      });
+    } else {
+      this.productService.addProduct(payload).subscribe({
+        next: () => {
+          this.isSubmitting = false;
+          this.closeModal();
+          this.loadProducts();
+        },
+        error: (err) => {
+          this.isSubmitting = false;
+          console.error('Error saving product:', err);
+        }
+      });
+    }
   }
 
   deleteProduct(item: any): void {
